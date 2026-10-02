@@ -49,10 +49,18 @@
       text-align: center;
       margin-bottom: 16px;
     }
+    .section-label {
+      font-size: 12px;
+      font-weight: bold;
+      color: var(--text-sub);
+      margin: 10px 0 6px 0;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #e2e8f0;
+    }
     .input-group {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
       margin-bottom: 16px;
     }
     .input-row {
@@ -65,7 +73,7 @@
       font-size: 13px;
       font-weight: bold;
       color: #334155;
-      width: 140px;
+      width: 160px;
       white-space: nowrap;
     }
     .input-row input {
@@ -95,7 +103,7 @@
     .chart-box {
       position: relative;
       width: 100%;
-      height: 240px;
+      height: 250px;
       margin-top: 10px;
     }
     .history-list {
@@ -144,31 +152,75 @@
     <div class="total-balance" id="totalBalance">¥0</div>
 
     <div class="input-group">
+      <!-- 現金カテゴリ -->
+      <div class="section-label">💵 現金</div>
       <div class="input-row">
-        <label style="color: #10b981;">💵 現金</label>
+        <label style="color: #10b981;">現金手元・口座</label>
         <input type="number" id="cashInput" placeholder="0" inputmode="numeric">
       </div>
       <div class="input-row">
-        <label style="color: #059669;">🏢 モリモリ買取</label>
+        <label style="color: #059669;">モリモリ買取</label>
         <input type="number" id="morimoriInput" placeholder="0" inputmode="numeric">
       </div>
+
+      <!-- 証券カテゴリ -->
+      <div class="section-label">📈 証券</div>
       <div class="input-row">
-        <label style="color: #6366f1;">🌱 iDeCo</label>
+        <label style="color: #6366f1;">iDeCo</label>
         <input type="number" id="idecoInput" placeholder="0" inputmode="numeric">
       </div>
       <div class="input-row">
-        <label style="color: #ef4444;">📱 PayPay証券</label>
+        <label style="color: #6366f1;">PayPay証券</label>
         <input type="number" id="paypayInput" placeholder="0" inputmode="numeric">
       </div>
       <div class="input-row">
-        <label style="color: #f59e0b;">📈 マネックス証券</label>
+        <label style="color: #6366f1;">マネックス証券</label>
         <input type="number" id="monexInput" placeholder="0" inputmode="numeric">
       </div>
       <div class="input-row">
-        <label style="color: #8b5cf6;">🏦 三菱UFJ eスマ証券</label>
+        <label style="color: #6366f1;">三菱UFJ eスマ証券</label>
         <input type="number" id="mufgInput" placeholder="0" inputmode="numeric">
       </div>
-      <div class="input-row" style="margin-top: 6px;">
+      <div class="input-row">
+        <label style="color: #6366f1;">その他証券</label>
+        <input type="number" id="otherSecInput" placeholder="0" inputmode="numeric">
+      </div>
+
+      <!-- 暗号資産カテゴリ -->
+      <div class="section-label">₿ 暗号資産</div>
+      <div class="input-row">
+        <label style="color: #f59e0b;">BTC (メルカリ)</label>
+        <input type="number" id="btcMercariInput" placeholder="0" inputmode="numeric">
+      </div>
+      <div class="input-row">
+        <label style="color: #f59e0b;">BTC (BITPOINT)</label>
+        <input type="number" id="btcBitpointInput" placeholder="0" inputmode="numeric">
+      </div>
+
+      <!-- ポイントカテゴリ -->
+      <div class="section-label">🎁 ポイント</div>
+      <div class="input-row">
+        <label style="color: #ec4899;">dポイント</label>
+        <input type="number" id="dPointInput" placeholder="0" inputmode="numeric">
+      </div>
+      <div class="input-row">
+        <label style="color: #ec4899;">dポイント運用</label>
+        <input type="number" id="dPointInvestInput" placeholder="0" inputmode="numeric">
+      </div>
+      <div class="input-row">
+        <label style="color: #ec4899;">Vポイント</label>
+        <input type="number" id="vPointInput" placeholder="0" inputmode="numeric">
+      </div>
+      <div class="input-row">
+        <label style="color: #ec4899;">Vポイント運用</label>
+        <input type="number" id="vPointInvestInput" placeholder="0" inputmode="numeric">
+      </div>
+      <div class="input-row">
+        <label style="color: #ec4899;">楽天期間限定pt</label>
+        <input type="number" id="rakutenLimitedInput" placeholder="0" inputmode="numeric">
+      </div>
+
+      <div class="input-row" style="margin-top: 10px;">
         <label>📅 入力日</label>
         <input type="date" id="dateInput">
       </div>
@@ -179,7 +231,7 @@
 
   <!-- 割合グラフ（円グラフ） -->
   <div class="card">
-    <div class="title">資産内訳（割合）</div>
+    <div class="title">資産内訳（4大区分）</div>
     <div class="chart-box">
       <canvas id="pieChart"></canvas>
     </div>
@@ -204,8 +256,8 @@
   let records = JSON.parse(localStorage.getItem('family_money_records') || '[]');
   let pieChart, lineChart;
 
-  const ITEM_COLORS = ['#10b981', '#059669', '#6366f1', '#ef4444', '#f59e0b', '#8b5cf6'];
-  const ITEM_LABELS = ['現金', 'モリモリ買取', 'iDeCo', 'PayPay証券', 'マネックス証券', '三菱UFJ eスマ証券'];
+  const CATEGORY_COLORS = ['#10b981', '#6366f1', '#f59e0b', '#ec4899']; // 現金, 証券, 暗号資産, ポイント
+  const CATEGORY_LABELS = ['現金', '証券', '暗号資産', 'ポイント'];
 
   window.onload = () => {
     document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
@@ -216,10 +268,22 @@
   function addRecord() {
     const cash = Number(document.getElementById('cashInput').value) || 0;
     const morimori = Number(document.getElementById('morimoriInput').value) || 0;
+    
     const ideco = Number(document.getElementById('idecoInput').value) || 0;
     const paypay = Number(document.getElementById('paypayInput').value) || 0;
     const monex = Number(document.getElementById('monexInput').value) || 0;
     const mufg = Number(document.getElementById('mufgInput').value) || 0;
+    const otherSec = Number(document.getElementById('otherSecInput').value) || 0;
+
+    const btcMercari = Number(document.getElementById('btcMercariInput').value) || 0;
+    const btcBitpoint = Number(document.getElementById('btcBitpointInput').value) || 0;
+
+    const dPoint = Number(document.getElementById('dPointInput').value) || 0;
+    const dPointInvest = Number(document.getElementById('dPointInvestInput').value) || 0;
+    const vPoint = Number(document.getElementById('vPointInput').value) || 0;
+    const vPointInvest = Number(document.getElementById('vPointInvestInput').value) || 0;
+    const rakutenLimited = Number(document.getElementById('rakutenLimitedInput').value) || 0;
+
     const date = document.getElementById('dateInput').value;
 
     if (!date) {
@@ -227,11 +291,22 @@
       return;
     }
 
-    const total = cash + morimori + ideco + paypay + monex + mufg;
+    const cashTotal = cash + morimori;
+    const secTotal = ideco + paypay + monex + mufg + otherSec;
+    const cryptoTotal = btcMercari + btcBitpoint;
+    const pointTotal = dPoint + dPointInvest + vPoint + vPointInvest + rakutenLimited;
+
+    const total = cashTotal + secTotal + cryptoTotal + pointTotal;
+
     const newRecord = {
       id: Date.now(),
       date,
-      items: [cash, morimori, ideco, paypay, monex, mufg],
+      categoryTotals: [cashTotal, secTotal, cryptoTotal, pointTotal],
+      details: {
+        cash, morimori, ideco, paypay, monex, mufg, otherSec,
+        btcMercari, btcBitpoint,
+        dPoint, dPointInvest, vPoint, vPointInvest, rakutenLimited
+      },
       total
     };
 
@@ -241,7 +316,11 @@
     localStorage.setItem('family_money_records', JSON.stringify(records));
 
     // 入力欄リセット
-    ['cashInput', 'morimoriInput', 'idecoInput', 'paypayInput', 'monexInput', 'mufgInput'].forEach(id => {
+    [
+      'cashInput', 'morimoriInput', 'idecoInput', 'paypayInput', 'monexInput', 'mufgInput', 'otherSecInput',
+      'btcMercariInput', 'btcBitpointInput',
+      'dPointInput', 'dPointInvestInput', 'vPointInput', 'vPointInvestInput', 'rakutenLimitedInput'
+    ].forEach(id => {
       document.getElementById(id).value = '';
     });
 
@@ -260,7 +339,7 @@
 
     if (records.length === 0) {
       document.getElementById('totalBalance').innerText = '¥0';
-      updatePieChart([0, 0, 0, 0, 0, 0]);
+      updatePieChart([0, 0, 0, 0]);
       updateLineChart([], []);
       return;
     }
@@ -272,10 +351,8 @@
       const li = document.createElement('li');
       li.className = 'history-item';
 
-      const detailsText = ITEM_LABELS.map((label, idx) => {
-        const val = r.items[idx] || 0;
-        return val > 0 ? `${label}: ¥${val.toLocaleString()}` : null;
-      }).filter(Boolean).join(' / ');
+      const catSum = r.categoryTotals || [0, 0, 0, 0];
+      const detailsText = `現金:¥${(catSum[0]||0).toLocaleString()} / 証券:¥${(catSum[1]||0).toLocaleString()} / 暗号:¥${(catSum[2]||0).toLocaleString()} / pt:¥${(catSum[3]||0).toLocaleString()}`;
 
       li.innerHTML = `
         <div class="history-header">
@@ -285,12 +362,12 @@
             <button class="del-btn" onclick="deleteRecord(${r.id})">削除</button>
           </div>
         </div>
-        <div class="history-details">${detailsText || '内訳なし'}</div>
+        <div class="history-details">${detailsText}</div>
       `;
       historyList.appendChild(li);
     });
 
-    updatePieChart(latest.items);
+    updatePieChart(latest.categoryTotals);
     updateLineChart(records.map(r => r.date), records.map(r => r.total));
   }
 
@@ -299,17 +376,17 @@
     pieChart = new Chart(ctxPie, {
       type: 'doughnut',
       data: {
-        labels: ITEM_LABELS,
+        labels: CATEGORY_LABELS,
         datasets: [{
-          data: [0, 0, 0, 0, 0, 0],
-          backgroundColor: ITEM_COLORS
+          data: [0, 0, 0, 0],
+          backgroundColor: CATEGORY_COLORS
         }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+          legend: { position: 'bottom', labels: { boxWidth: 14, font: { size: 12 } } }
         }
       }
     });
@@ -338,8 +415,8 @@
     });
   }
 
-  function updatePieChart(itemData) {
-    pieChart.data.datasets[0].data = itemData;
+  function updatePieChart(categoryData) {
+    pieChart.data.datasets[0].data = categoryData;
     pieChart.update();
   }
 
