@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ファミリー資産管理</title>
-  <!-- グラフ描画ライブラリ Chart.js -->
+  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root {
@@ -133,20 +133,20 @@
       color: #64748b;
       line-height: 1.4;
     }
-    .del-btn {
+    .action-btn {
       background: none;
       border: none;
-      color: #ef4444;
       cursor: pointer;
       font-size: 12px;
       padding: 2px 6px;
     }
+    .del-btn { color: #ef4444; }
+    .edit-btn { color: #2563eb; }
   </style>
 </head>
 <body>
 
 <div class="container">
-  <!-- 入力・最新残高エリア -->
   <div class="card">
     <div class="title">総資産残高</div>
     <div class="total-balance" id="totalBalance">¥0</div>
@@ -241,7 +241,6 @@
     <button class="btn" onclick="addRecord()">記録を保存・更新</button>
   </div>
 
-  <!-- 割合グラフ（円グラフ） -->
   <div class="card">
     <div class="title">資産内訳（4大区分）</div>
     <div class="chart-box">
@@ -249,7 +248,6 @@
     </div>
   </div>
 
-  <!-- 推移グラフ（折れ線グラフ） -->
   <div class="card">
     <div class="title">総資産推移</div>
     <div class="chart-box">
@@ -257,7 +255,6 @@
     </div>
   </div>
 
-  <!-- 履歴一覧 -->
   <div class="card">
     <div class="title" style="margin-bottom: 12px;">入力履歴</div>
     <ul class="history-list" id="historyList"></ul>
@@ -268,7 +265,14 @@
   let records = JSON.parse(localStorage.getItem('family_money_records') || '[]');
   let pieChart, lineChart;
 
-  const CATEGORY_COLORS = ['#10b981', '#6366f1', '#f59e0b', '#ec4899']; // 現金, 証券, 暗号資産, ポイント
+  const INPUT_IDS = [
+    'cashInput', 'morimoriInput', 'idecoInput', 'paypayInput', 'monexInput', 'mufgInput', 'otherSecInput',
+    'btcMercariInput', 'btcBitpointInput',
+    'dPointInput', 'dPointInvestInput', 'vPointInput', 'vPointInvestInput', 'rakutenLimitedInput',
+    'pontaPointInput', 'pontaPointInvestInput', 'paypayPointInvestInput'
+  ];
+
+  const CATEGORY_COLORS = ['#10b981', '#6366f1', '#f59e0b', '#ec4899'];
   const CATEGORY_LABELS = ['現金', '証券', '暗号資産', 'ポイント'];
 
   window.onload = () => {
@@ -278,66 +282,48 @@
   };
 
   function addRecord() {
-    const cash = Number(document.getElementById('cashInput').value) || 0;
-    const morimori = Number(document.getElementById('morimoriInput').value) || 0;
-    
-    const ideco = Number(document.getElementById('idecoInput').value) || 0;
-    const paypay = Number(document.getElementById('paypayInput').value) || 0;
-    const monex = Number(document.getElementById('monexInput').value) || 0;
-    const mufg = Number(document.getElementById('mufgInput').value) || 0;
-    const otherSec = Number(document.getElementById('otherSecInput').value) || 0;
-
-    const btcMercari = Number(document.getElementById('btcMercariInput').value) || 0;
-    const btcBitpoint = Number(document.getElementById('btcBitpointInput').value) || 0;
-
-    const dPoint = Number(document.getElementById('dPointInput').value) || 0;
-    const dPointInvest = Number(document.getElementById('dPointInvestInput').value) || 0;
-    const vPoint = Number(document.getElementById('vPointInput').value) || 0;
-    const vPointInvest = Number(document.getElementById('vPointInvestInput').value) || 0;
-    const rakutenLimited = Number(document.getElementById('rakutenLimitedInput').value) || 0;
-    const pontaPoint = Number(document.getElementById('pontaPointInput').value) || 0;
-    const pontaPointInvest = Number(document.getElementById('pontaPointInvestInput').value) || 0;
-    const paypayPointInvest = Number(document.getElementById('paypayPointInvestInput').value) || 0;
-
     const date = document.getElementById('dateInput').value;
-
     if (!date) {
       alert('日付を選択してください');
       return;
     }
 
-    const cashTotal = cash + morimori;
-    const secTotal = ideco + paypay + monex + mufg + otherSec;
-    const cryptoTotal = btcMercari + btcBitpoint;
-    const pointTotal = dPoint + dPointInvest + vPoint + vPointInvest + rakutenLimited + pontaPoint + pontaPointInvest + paypayPointInvest;
+    const values = {};
+    INPUT_IDS.forEach(id => {
+      const key = id.replace('Input', '');
+      values[key] = Number(document.getElementById(id).value) || 0;
+    });
+
+    const cashTotal = values.cash + values.morimori;
+    const secTotal = values.ideco + values.paypay + values.monex + values.mufg + values.otherSec;
+    const cryptoTotal = values.btcMercari + values.btcBitpoint;
+    const pointTotal = values.dPoint + values.dPointInvest + values.vPoint + values.vPointInvest +
+                       values.rakutenLimited + values.pontaPoint + values.pontaPointInvest + values.paypayPointInvest;
 
     const total = cashTotal + secTotal + cryptoTotal + pointTotal;
 
-    const newRecord = {
+    const recordData = {
       id: Date.now(),
       date,
       categoryTotals: [cashTotal, secTotal, cryptoTotal, pointTotal],
-      details: {
-        cash, morimori, ideco, paypay, monex, mufg, otherSec,
-        btcMercari, btcBitpoint,
-        dPoint, dPointInvest, vPoint, vPointInvest, rakutenLimited,
-        pontaPoint, pontaPointInvest, paypayPointInvest
-      },
+      details: values,
       total
     };
 
-    records.push(newRecord);
-    records.sort((a, b) => new Date(a.date) - new Date(b.date));
+    // 同一日のデータがあれば上書き、なければ新規追加
+    const existingIndex = records.findIndex(r => r.date === date);
+    if (existingIndex !== -1) {
+      recordData.id = records[existingIndex].id; // 既存IDを維持
+      records[existingIndex] = recordData;
+    } else {
+      records.push(recordData);
+    }
 
+    records.sort((a, b) => new Date(a.date) - new Date(b.date));
     localStorage.setItem('family_money_records', JSON.stringify(records));
 
-    // 入力欄リセット
-    [
-      'cashInput', 'morimoriInput', 'idecoInput', 'paypayInput', 'monexInput', 'mufgInput', 'otherSecInput',
-      'btcMercariInput', 'btcBitpointInput',
-      'dPointInput', 'dPointInvestInput', 'vPointInput', 'vPointInvestInput', 'rakutenLimitedInput',
-      'pontaPointInput', 'pontaPointInvestInput', 'paypayPointInvestInput'
-    ].forEach(id => {
+    // 入力欄のリセット
+    INPUT_IDS.forEach(id => {
       document.getElementById(id).value = '';
     });
 
@@ -345,9 +331,22 @@
   }
 
   function deleteRecord(id) {
+    if (!confirm('この記録を削除してもよろしいですか？')) return;
     records = records.filter(r => r.id !== id);
     localStorage.setItem('family_money_records', JSON.stringify(records));
     updateUI();
+  }
+
+  function loadRecordToForm(id) {
+    const record = records.find(r => r.id === id);
+    if (!record) return;
+
+    document.getElementById('dateInput').value = record.date;
+    INPUT_IDS.forEach(idStr => {
+      const key = idStr.replace('Input', '');
+      document.getElementById(idStr).value = record.details[key] || '';
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function updateUI() {
@@ -376,7 +375,8 @@
           <span class="history-date">📅 ${r.date}</span>
           <div>
             <span class="history-amount">¥${r.total.toLocaleString()}</span>
-            <button class="del-btn" onclick="deleteRecord(${r.id})">削除</button>
+            <button class="action-btn edit-btn" onclick="loadRecordToForm(${r.id})">編集</button>
+            <button class="action-btn del-btn" onclick="deleteRecord(${r.id})">削除</button>
           </div>
         </div>
         <div class="history-details">${detailsText}</div>
