@@ -219,6 +219,18 @@
         <label style="color: #ec4899;">楽天期間限定pt</label>
         <input type="number" id="rakutenLimitedInput" placeholder="0" inputmode="numeric">
       </div>
+      <div class="input-row">
+        <label style="color: #ec4899;">Pontaポイント</label>
+        <input type="number" id="pontaPointInput" placeholder="0" inputmode="numeric">
+      </div>
+      <div class="input-row">
+        <label style="color: #ec4899;">Pontaポイント運用</label>
+        <input type="number" id="pontaPointInvestInput" placeholder="0" inputmode="numeric">
+      </div>
+      <div class="input-row">
+        <label style="color: #ec4899;">PayPayポイント運用</label>
+        <input type="number" id="paypayPointInvestInput" placeholder="0" inputmode="numeric">
+      </div>
 
       <div class="input-row" style="margin-top: 10px;">
         <label>📅 入力日</label>
@@ -283,6 +295,9 @@
     const vPoint = Number(document.getElementById('vPointInput').value) || 0;
     const vPointInvest = Number(document.getElementById('vPointInvestInput').value) || 0;
     const rakutenLimited = Number(document.getElementById('rakutenLimitedInput').value) || 0;
+    const pontaPoint = Number(document.getElementById('pontaPointInput').value) || 0;
+    const pontaPointInvest = Number(document.getElementById('pontaPointInvestInput').value) || 0;
+    const paypayPointInvest = Number(document.getElementById('paypayPointInvestInput').value) || 0;
 
     const date = document.getElementById('dateInput').value;
 
@@ -294,7 +309,7 @@
     const cashTotal = cash + morimori;
     const secTotal = ideco + paypay + monex + mufg + otherSec;
     const cryptoTotal = btcMercari + btcBitpoint;
-    const pointTotal = dPoint + dPointInvest + vPoint + vPointInvest + rakutenLimited;
+    const pointTotal = dPoint + dPointInvest + vPoint + vPointInvest + rakutenLimited + pontaPoint + pontaPointInvest + paypayPointInvest;
 
     const total = cashTotal + secTotal + cryptoTotal + pointTotal;
 
@@ -305,7 +320,8 @@
       details: {
         cash, morimori, ideco, paypay, monex, mufg, otherSec,
         btcMercari, btcBitpoint,
-        dPoint, dPointInvest, vPoint, vPointInvest, rakutenLimited
+        dPoint, dPointInvest, vPoint, vPointInvest, rakutenLimited,
+        pontaPoint, pontaPointInvest, paypayPointInvest
       },
       total
     };
@@ -319,7 +335,8 @@
     [
       'cashInput', 'morimoriInput', 'idecoInput', 'paypayInput', 'monexInput', 'mufgInput', 'otherSecInput',
       'btcMercariInput', 'btcBitpointInput',
-      'dPointInput', 'dPointInvestInput', 'vPointInput', 'vPointInvestInput', 'rakutenLimitedInput'
+      'dPointInput', 'dPointInvestInput', 'vPointInput', 'vPointInvestInput', 'rakutenLimitedInput',
+      'pontaPointInput', 'pontaPointInvestInput', 'paypayPointInvestInput'
     ].forEach(id => {
       document.getElementById(id).value = '';
     });
