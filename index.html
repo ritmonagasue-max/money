@@ -182,6 +182,14 @@
         <input type="number" id="mufgInput" placeholder="0" inputmode="numeric">
       </div>
       <div class="input-row">
+        <label style="color: #6366f1;">日興証券</label>
+        <input type="number" id="nikkoInput" placeholder="0" inputmode="numeric">
+      </div>
+      <div class="input-row">
+        <label style="color: #6366f1;">さわかみファンド</label>
+        <input type="number" id="sawakamiInput" placeholder="0" inputmode="numeric">
+      </div>
+      <div class="input-row">
         <label style="color: #6366f1;">その他証券</label>
         <input type="number" id="otherSecInput" placeholder="0" inputmode="numeric">
       </div>
@@ -231,6 +239,30 @@
         <label style="color: #ec4899;">PayPayポイント運用</label>
         <input type="number" id="paypayPointInvestInput" placeholder="0" inputmode="numeric">
       </div>
+      <div class="input-row">
+        <label style="color: #ec4899;">Gポイント</label>
+        <input type="number" id="gPointInput" placeholder="0" inputmode="numeric">
+      </div>
+      <div class="input-row">
+        <label style="color: #ec4899;">JRキューポ</label>
+        <input type="number" id="jrCupoInput" placeholder="0" inputmode="numeric">
+      </div>
+      <div class="input-row">
+        <label style="color: #ec4899;">ドットマネー</label>
+        <input type="number" id="dotMoneyInput" placeholder="0" inputmode="numeric">
+      </div>
+      <div class="input-row">
+        <label style="color: #ec4899;">Pex</label>
+        <input type="number" id="pexInput" placeholder="0" inputmode="numeric">
+      </div>
+      <div class="input-row">
+        <label style="color: #ec4899;">Powl</label>
+        <input type="number" id="powlInput" placeholder="0" inputmode="numeric">
+      </div>
+      <div class="input-row">
+        <label style="color: #ec4899;">ハピタス</label>
+        <input type="number" id="hapitasuInput" placeholder="0" inputmode="numeric">
+      </div>
 
       <div class="input-row" style="margin-top: 10px;">
         <label>📅 入力日</label>
@@ -266,10 +298,12 @@
   let pieChart, lineChart;
 
   const INPUT_IDS = [
-    'cashInput', 'morimoriInput', 'idecoInput', 'paypayInput', 'monexInput', 'mufgInput', 'otherSecInput',
+    'cashInput', 'morimoriInput', 
+    'idecoInput', 'paypayInput', 'monexInput', 'mufgInput', 'nikkoInput', 'sawakamiInput', 'otherSecInput',
     'btcMercariInput', 'btcBitpointInput',
     'dPointInput', 'dPointInvestInput', 'vPointInput', 'vPointInvestInput', 'rakutenLimitedInput',
-    'pontaPointInput', 'pontaPointInvestInput', 'paypayPointInvestInput'
+    'pontaPointInput', 'pontaPointInvestInput', 'paypayPointInvestInput',
+    'gPointInput', 'jrCupoInput', 'dotMoneyInput', 'pexInput', 'powlInput', 'hapitasuInput'
   ];
 
   const CATEGORY_COLORS = ['#10b981', '#6366f1', '#f59e0b', '#ec4899'];
@@ -295,10 +329,11 @@
     });
 
     const cashTotal = values.cash + values.morimori;
-    const secTotal = values.ideco + values.paypay + values.monex + values.mufg + values.otherSec;
+    const secTotal = values.ideco + values.paypay + values.monex + values.mufg + values.nikko + values.sawakami + values.otherSec;
     const cryptoTotal = values.btcMercari + values.btcBitpoint;
     const pointTotal = values.dPoint + values.dPointInvest + values.vPoint + values.vPointInvest +
-                       values.rakutenLimited + values.pontaPoint + values.pontaPointInvest + values.paypayPointInvest;
+                       values.rakutenLimited + values.pontaPoint + values.pontaPointInvest + values.paypayPointInvest +
+                       values.gPoint + values.jrCupo + values.dotMoney + values.pex + values.powl + values.hapitasu;
 
     const total = cashTotal + secTotal + cryptoTotal + pointTotal;
 
