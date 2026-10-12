@@ -47,8 +47,18 @@
       font-weight: bold;
       color: var(--text-main);
       text-align: center;
+      margin-bottom: 4px;
+    }
+    .diff-display {
+      font-size: 14px;
+      font-weight: bold;
+      text-align: center;
       margin-bottom: 16px;
     }
+    .diff-plus { color: #10b981; }
+    .diff-minus { color: #ef4444; }
+    .diff-zero { color: var(--text-sub); }
+
     .section-label {
       font-size: 12px;
       font-weight: bold;
@@ -127,7 +137,13 @@
       margin-bottom: 4px;
     }
     .history-date { color: var(--text-sub); font-weight: 500; }
+    .history-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
     .history-amount { font-weight: bold; color: var(--text-main); font-size: 15px; }
+    .history-diff { font-size: 11px; font-weight: bold; display: block; text-align: right; }
     .history-details {
       font-size: 11px;
       color: #64748b;
@@ -138,7 +154,7 @@
       border: none;
       cursor: pointer;
       font-size: 12px;
-      padding: 2px 6px;
+      padding: 2px 4px;
     }
     .del-btn { color: #ef4444; }
     .edit-btn { color: #2563eb; }
@@ -150,6 +166,7 @@
   <div class="card">
     <div class="title">総資産残高</div>
     <div class="total-balance" id="totalBalance">¥0</div>
+    <div class="diff-display" id="latestDiff">前回比: -</div>
 
     <div class="input-group">
       <!-- 現金カテゴリ -->
@@ -161,6 +178,10 @@
       <div class="input-row">
         <label style="color: #059669;">モリモリ買取</label>
         <input type="number" id="morimoriInput" placeholder="0" inputmode="numeric">
+      </div>
+      <div class="input-row">
+        <label style="color: #047857;">日本生命</label>
+        <input type="number" id="nissayInput" placeholder="0" inputmode="numeric">
       </div>
 
       <!-- 証券カテゴリ -->
@@ -188,6 +209,10 @@
       <div class="input-row">
         <label style="color: #6366f1;">さわかみファンド</label>
         <input type="number" id="sawakamiInput" placeholder="0" inputmode="numeric">
+      </div>
+      <div class="input-row">
+        <label style="color: #6366f1;">コネクト証券</label>
+        <input type="number" id="connectInput" placeholder="0" inputmode="numeric">
       </div>
       <div class="input-row">
         <label style="color: #6366f1;">その他証券</label>
@@ -288,7 +313,7 @@
   </div>
 
   <div class="card">
-    <div class="title" style="margin-bottom: 12px;">入力履歴</div>
+    <div class="title" style="margin-bottom: 12px;">入力履歴（前回比）</div>
     <ul class="history-list" id="historyList"></ul>
   </div>
 </div>
@@ -298,8 +323,8 @@
   let pieChart, lineChart;
 
   const INPUT_IDS = [
-    'cashInput', 'morimoriInput', 
-    'idecoInput', 'paypayInput', 'monexInput', 'mufgInput', 'nikkoInput', 'sawakamiInput', 'otherSecInput',
+    'cashInput', 'morimoriInput', 'nissayInput',
+    'idecoInput', 'paypayInput', 'monexInput', 'mufgInput', 'nikkoInput', 'sawakamiInput', 'connectInput', 'otherSecInput',
     'btcMercariInput', 'btcBitpointInput',
     'dPointInput', 'dPointInvestInput', 'vPointInput', 'vPointInvestInput', 'rakutenLimitedInput',
     'pontaPointInput', 'pontaPointInvestInput', 'paypayPointInvestInput',
@@ -328,8 +353,8 @@
       values[key] = Number(document.getElementById(id).value) || 0;
     });
 
-    const cashTotal = values.cash + values.morimori;
-    const secTotal = values.ideco + values.paypay + values.monex + values.mufg + values.nikko + values.sawakami + values.otherSec;
+    const cashTotal = values.cash + values.morimori + values.nissay;
+    const secTotal = values.ideco + values.paypay + values.monex + values.mufg + values.nikko + values.sawakami + values.connect + values.otherSec;
     const cryptoTotal = values.btcMercari + values.btcBitpoint;
     const pointTotal = values.dPoint + values.dPointInvest + values.vPoint + values.vPointInvest +
                        values.rakutenLimited + values.pontaPoint + values.pontaPointInvest + values.paypayPointInvest +
@@ -345,10 +370,9 @@
       total
     };
 
-    // 同一日のデータがあれば上書き、なければ新規追加
     const existingIndex = records.findIndex(r => r.date === date);
     if (existingIndex !== -1) {
-      recordData.id = records[existingIndex].id; // 既存IDを維持
+      recordData.id = records[existingIndex].id;
       records[existingIndex] = recordData;
     } else {
       records.push(recordData);
@@ -357,7 +381,6 @@
     records.sort((a, b) => new Date(a.date) - new Date(b.date));
     localStorage.setItem('family_money_records', JSON.stringify(records));
 
-    // 入力欄のリセット
     INPUT_IDS.forEach(id => {
       document.getElementById(id).value = '';
     });
@@ -387,9 +410,12 @@
   function updateUI() {
     const historyList = document.getElementById('historyList');
     historyList.innerHTML = '';
+    const latestDiffElem = document.getElementById('latestDiff');
 
     if (records.length === 0) {
       document.getElementById('totalBalance').innerText = '¥0';
+      latestDiffElem.innerHTML = '前回比: -';
+      latestDiffElem.className = 'diff-display diff-zero';
       updatePieChart([0, 0, 0, 0]);
       updateLineChart([], []);
       return;
@@ -398,9 +424,53 @@
     const latest = records[records.length - 1];
     document.getElementById('totalBalance').innerText = '¥' + latest.total.toLocaleString();
 
-    [...records].reverse().forEach(r => {
+    // 前回比（金額＆％）の計算
+    let latestDiffText = '-';
+    let latestDiffClass = 'diff-zero';
+    if (records.length >= 2) {
+      const previous = records[records.length - 2];
+      const diff = latest.total - previous.total;
+      const percent = previous.total > 0 ? ((diff / previous.total) * 100).toFixed(2) : 0;
+      
+      if (diff > 0) {
+        latestDiffText = `前回比: +¥${diff.toLocaleString()} (+${percent}%)`;
+        latestDiffClass = 'diff-display diff-plus';
+      } else if (diff < 0) {
+        latestDiffText = `前回比: -¥${Math.abs(diff).toLocaleString()} (${percent}%)`;
+        latestDiffClass = 'diff-display diff-minus';
+      } else {
+        latestDiffText = '前回比: ±¥0 (0.00%)';
+        latestDiffClass = 'diff-display diff-zero';
+      }
+    } else {
+      latestDiffText = '初回の記録';
+      latestDiffClass = 'diff-display diff-zero';
+    }
+    latestDiffElem.innerHTML = latestDiffText;
+    latestDiffElem.className = latestDiffClass;
+
+    // 履歴リストの生成（新しい順にループ）
+    [...records].reverse().forEach((r, index, arr) => {
       const li = document.createElement('li');
       li.className = 'history-item';
+
+      const originalIndex = records.findIndex(item => item.id === r.id);
+      let diffHtml = '';
+      if (originalIndex > 0) {
+        const prevRecord = records[originalIndex - 1];
+        const diffVal = r.total - prevRecord.total;
+        const percentVal = prevRecord.total > 0 ? ((diffVal / prevRecord.total) * 100).toFixed(2) : 0;
+
+        if (diffVal > 0) {
+          diffHtml = `<span class="history-diff diff-plus">+¥${diffVal.toLocaleString()} (+${percentVal}%)</span>`;
+        } else if (diffVal < 0) {
+          diffHtml = `<span class="history-diff diff-minus">-¥${Math.abs(diffVal).toLocaleString()} (${percentVal}%)</span>`;
+        } else {
+          diffHtml = `<span class="history-diff diff-zero">±¥0 (0.00%)</span>`;
+        }
+      } else {
+        diffHtml = `<span class="history-diff diff-zero">初回</span>`;
+      }
 
       const catSum = r.categoryTotals || [0, 0, 0, 0];
       const detailsText = `現金:¥${(catSum[0]||0).toLocaleString()} / 証券:¥${(catSum[1]||0).toLocaleString()} / 暗号:¥${(catSum[2]||0).toLocaleString()} / pt:¥${(catSum[3]||0).toLocaleString()}`;
@@ -408,8 +478,11 @@
       li.innerHTML = `
         <div class="history-header">
           <span class="history-date">📅 ${r.date}</span>
-          <div>
-            <span class="history-amount">¥${r.total.toLocaleString()}</span>
+          <div class="history-right">
+            <div>
+              <span class="history-amount">¥${r.total.toLocaleString()}</span>
+              ${diffHtml}
+            </div>
             <button class="action-btn edit-btn" onclick="loadRecordToForm(${r.id})">編集</button>
             <button class="action-btn del-btn" onclick="deleteRecord(${r.id})">削除</button>
           </div>
