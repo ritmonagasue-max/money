@@ -4,8 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ファミリー資産管理</title>
-  <!-- Chart.js -->
+  <!-- Chart.js & Datalabels Plugin -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
   <style>
     :root {
       --bg-color: #f8fafc;
@@ -120,7 +121,7 @@
       list-style: none;
       padding: 0;
       margin: 0;
-      max-height: 220px;
+      max-height: 260px;
       overflow-y: auto;
     }
     .history-item {
@@ -158,6 +159,25 @@
     }
     .del-btn { color: #ef4444; }
     .edit-btn { color: #2563eb; }
+
+    /* 各項目の増減表示カード */
+    .diff-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .diff-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      padding: 6px 10px;
+      background: #f1f5f9;
+      border-radius: 8px;
+    }
+    .diff-item-name { font-weight: bold; color: #334155; }
+    .diff-item-val { font-weight: bold; }
   </style>
 </head>
 <body>
@@ -298,6 +318,14 @@
     <button class="btn" onclick="addRecord()">記録を保存・更新</button>
   </div>
 
+  <!-- 前回比（項目別増減）カード -->
+  <div class="card">
+    <div class="title">前回比の内訳（主な増減）</div>
+    <div class="diff-list" id="itemDiffList">
+      <div style="text-align: center; color: var(--text-sub); font-size: 12px; padding: 8px;">比較対象のデータが足りません</div>
+    </div>
+  </div>
+
   <div class="card">
     <div class="title">資産内訳（4大区分）</div>
     <div class="chart-box">
@@ -319,17 +347,22 @@
 </div>
 
 <script>
+  // datalabelsプラグインを登録
+  Chart.register(ChartDataLabels);
+
   let records = JSON.parse(localStorage.getItem('family_money_records') || '[]');
   let pieChart, lineChart;
 
-  const INPUT_IDS = [
-    'cashInput', 'morimoriInput', 'nissayInput',
-    'idecoInput', 'paypayInput', 'monexInput', 'mufgInput', 'nikkoInput', 'sawakamiInput', 'connectInput', 'otherSecInput',
-    'btcMercariInput', 'btcBitpointInput',
-    'dPointInput', 'dPointInvestInput', 'vPointInput', 'vPointInvestInput', 'rakutenLimitedInput',
-    'pontaPointInput', 'pontaPointInvestInput', 'paypayPointInvestInput',
-    'gPointInput', 'jrCupoInput', 'dotMoneyInput', 'pexInput', 'powlInput', 'hapitasuInput'
-  ];
+  const INPUT_LABELS = {
+    cash: '現金手元・口座', morimori: 'モリモリ買取', nissay: '日本生命',
+    ideco: 'iDeCo', paypay: 'PayPay証券', monex: 'マネックス証券', mufg: '三菱UFJ eスマ証券', nikko: '日興証券', sawakami: 'さわかみファンド', connect: 'コネクト証券', otherSec: 'その他証券',
+    btcMercari: 'BTC (メルカリ)', btcBitpoint: 'BTC (BITPOINT)',
+    dPoint: 'dポイント', dPointInvest: 'dポイント運用', vPoint: 'Vポイント', vPointInvest: 'Vポイント運用', rakutenLimited: '楽天期間限定pt',
+    pontaPoint: 'Pontaポイント', pontaPointInvest: 'Pontaポイント運用', paypayPointInvest: 'PayPayポイント運用',
+    gPoint: 'Gポイント', jrCupo: 'JRキューポ', dotMoney: 'ドットマネー', pex: 'Pex', powl: 'Powl', hapitasu: 'ハピタス'
+  };
+
+  const INPUT_IDS = Object.keys(INPUT_LABELS).map(key => key + 'Input');
 
   const CATEGORY_COLORS = ['#10b981', '#6366f1', '#f59e0b', '#ec4899'];
   const CATEGORY_LABELS = ['現金', '証券', '暗号資産', 'ポイント'];
@@ -418,6 +451,7 @@
       latestDiffElem.className = 'diff-display diff-zero';
       updatePieChart([0, 0, 0, 0]);
       updateLineChart([], []);
+      updateItemDiffList(null, null);
       return;
     }
 
@@ -425,32 +459,32 @@
     document.getElementById('totalBalance').innerText = '¥' + latest.total.toLocaleString();
 
     // 前回比（金額＆％）の計算
-    let latestDiffText = '-';
-    let latestDiffClass = 'diff-zero';
+    let previous = null;
     if (records.length >= 2) {
-      const previous = records[records.length - 2];
+      previous = records[records.length - 2];
       const diff = latest.total - previous.total;
       const percent = previous.total > 0 ? ((diff / previous.total) * 100).toFixed(2) : 0;
       
       if (diff > 0) {
-        latestDiffText = `前回比: +¥${diff.toLocaleString()} (+${percent}%)`;
-        latestDiffClass = 'diff-display diff-plus';
+        latestDiffElem.innerHTML = `前回比: +¥${diff.toLocaleString()} (+${percent}%)`;
+        latestDiffElem.className = 'diff-display diff-plus';
       } else if (diff < 0) {
-        latestDiffText = `前回比: -¥${Math.abs(diff).toLocaleString()} (${percent}%)`;
-        latestDiffClass = 'diff-display diff-minus';
+        latestDiffElem.innerHTML = `前回比: -¥${Math.abs(diff).toLocaleString()} (${percent}%)`;
+        latestDiffElem.className = 'diff-display diff-minus';
       } else {
-        latestDiffText = '前回比: ±¥0 (0.00%)';
-        latestDiffClass = 'diff-display diff-zero';
+        latestDiffElem.innerHTML = '前回比: ±¥0 (0.00%)';
+        latestDiffElem.className = 'diff-display diff-zero';
       }
     } else {
-      latestDiffText = '初回の記録';
-      latestDiffClass = 'diff-display diff-zero';
+      latestDiffElem.innerHTML = '初回の記録';
+      latestDiffElem.className = 'diff-display diff-zero';
     }
-    latestDiffElem.innerHTML = latestDiffText;
-    latestDiffElem.className = latestDiffClass;
 
-    // 履歴リストの生成（新しい順にループ）
-    [...records].reverse().forEach((r, index, arr) => {
+    // 項目別の前回比リストを更新
+    updateItemDiffList(latest, previous);
+
+    // 履歴リストの生成（新しい順）
+    [...records].reverse().forEach((r) => {
       const li = document.createElement('li');
       li.className = 'history-item';
 
@@ -496,6 +530,52 @@
     updateLineChart(records.map(r => r.date), records.map(r => r.total));
   }
 
+  function updateItemDiffList(latest, previous) {
+    const diffContainer = document.getElementById('itemDiffList');
+    diffContainer.innerHTML = '';
+
+    if (!latest || !previous) {
+      diffContainer.innerHTML = `<div style="text-align: center; color: var(--text-sub); font-size: 12px; padding: 8px;">比較対象（2回分以上の入力）がありません</div>`;
+      return;
+    }
+
+    const diffs = [];
+    Object.keys(INPUT_LABELS).forEach(key => {
+      const currentVal = latest.details[key] || 0;
+      const prevVal = previous.details[key] || 0;
+      const diffVal = currentVal - prevVal;
+      if (diffVal !== 0) {
+        diffs.push({
+          name: INPUT_LABELS[key],
+          diff: diffVal
+        });
+      }
+    });
+
+    if (diffs.length === 0) {
+      diffContainer.innerHTML = `<div style="text-align: center; color: var(--text-sub); font-size: 12px; padding: 8px;">前回から変更のある項目はありません</div>`;
+      return;
+    }
+
+    // 変化の絶対値が大きい順に並び替え
+    diffs.sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
+
+    diffs.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'diff-item';
+      
+      const isPlus = item.diff > 0;
+      const classColor = isPlus ? 'diff-plus' : 'diff-minus';
+      const sign = isPlus ? '+' : '';
+
+      div.innerHTML = `
+        <span class="diff-item-name">${item.name}</span>
+        <span class="diff-item-val ${classColor}">${sign}¥${item.diff.toLocaleString()}</span>
+      `;
+      diffContainer.appendChild(div);
+    });
+  }
+
   function initCharts() {
     const ctxPie = document.getElementById('pieChart').getContext('2d');
     pieChart = new Chart(ctxPie, {
@@ -511,7 +591,17 @@
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { position: 'bottom', labels: { boxWidth: 14, font: { size: 12 } } }
+          legend: { position: 'bottom', labels: { boxWidth: 14, font: { size: 12 } } },
+          datalabels: {
+            color: '#ffffff',
+            font: { weight: 'bold', size: 12 },
+            formatter: (value, ctx) => {
+              const sum = ctx.dataset.data.reduce((a, b) => a + b, 0);
+              if (sum === 0 || value === 0) return '';
+              const percentage = ((value / sum) * 100).toFixed(1) + '%';
+              return percentage;
+            }
+          }
         }
       }
     });
@@ -533,6 +623,9 @@
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        plugins: {
+          datalabels: { display: false } // 折れ線グラフではラベル非表示
+        },
         scales: {
           y: { beginAtZero: false }
         }
