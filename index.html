@@ -1,5 +1,6 @@
-資産形成アドバイス機能を追加し、最新の全機能（入力欄の折りたたみ、円グラフの割合表示、前回比・％表示、前回からの項目別内訳増減など）をすべて網羅した更新版のHTMLコードを作成しました。
-以下のコードをコピーして、お手元のファイルに上書きしてご活用ください。
+「前回からの項目別内訳を見る」を開いたときに、文字がごちゃごちゃして見にくくなってしまっているのですね。
+内訳の表示を1行ずつ綺麗にリスト形式（または縦並び）に改良し、さらに増えた項目は緑、減った項目は赤で色分けしてパッと見で分かりやすいデザインに修正しました！
+以下の最新コードをコピーして、お手元のファイルに上書きしてご確認ください。
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -51,17 +52,28 @@
       font-weight: bold;
       color: var(--text-main);
       text-align: center;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
     }
     .diff-display {
-      font-size: 14px;
+      font-size: 15px;
       font-weight: bold;
       text-align: center;
       margin-bottom: 16px;
+      padding: 6px 12px;
+      background: #f1f5f9;
+      border-radius: 8px;
+      display: inline-block;
+      margin-left: auto;
+      margin-right: auto;
+      width: fit-content;
     }
-    .diff-plus { color: #10b981; }
-    .diff-minus { color: #ef4444; }
-    .diff-zero { color: var(--text-sub); }
+    .diff-container {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .diff-plus { color: #059669; background: #ecfdf5; padding: 2px 6px; border-radius: 4px; }
+    .diff-minus { color: #dc2626; background: #fef2f2; padding: 2px 6px; border-radius: 4px; }
+    .diff-zero { color: var(--text-sub); background: #f8fafc; padding: 2px 6px; border-radius: 4px; }
 
     /* アドバイスカード用スタイル */
     .advice-card {
@@ -98,7 +110,7 @@
       transition: max-height 0.3s ease-out;
     }
     .accordion-content.open {
-      max-height: 2000px; /* 十分な大きさを指定 */
+      max-height: 2000px;
       transition: max-height 0.5s ease-in;
     }
 
@@ -164,7 +176,7 @@
       list-style: none;
       padding: 0;
       margin: 0;
-      max-height: 300px;
+      max-height: 350px;
       overflow-y: auto;
     }
     .history-item {
@@ -177,17 +189,28 @@
     .history-header {
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-start;
       margin-bottom: 4px;
     }
-    .history-date { color: var(--text-sub); font-weight: 500; }
+    .history-date { color: var(--text-sub); font-weight: 500; padding-top: 2px; }
     .history-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+    }
+    .history-amount-row {
       display: flex;
       align-items: center;
       gap: 8px;
     }
     .history-amount { font-weight: bold; color: var(--text-main); font-size: 15px; }
-    .history-diff { font-size: 11px; font-weight: bold; display: block; text-align: right; }
+    .history-diff { font-size: 12px; font-weight: bold; padding: 2px 6px; border-radius: 4px; }
+    .history-buttons {
+      display: flex;
+      gap: 6px;
+      margin-top: 2px;
+    }
     .history-details-toggle {
       font-size: 11px;
       color: var(--primary);
@@ -195,21 +218,35 @@
       border: none;
       cursor: pointer;
       padding: 0;
-      margin-top: 4px;
-      text-align: left;
-    }
-    .history-details-box {
-      font-size: 11px;
-      color: #475569;
-      background: #f8fafc;
-      padding: 8px;
-      border-radius: 8px;
       margin-top: 6px;
+      text-align: left;
+      font-weight: 500;
+    }
+    /* 項目別内訳ボックスの改善 */
+    .history-details-box {
+      font-size: 12px;
+      color: #334155;
+      background: #f8fafc;
+      padding: 10px;
+      border-radius: 8px;
+      margin-top: 8px;
       display: none;
-      line-height: 1.5;
+      border: 1px solid #e2e8f0;
     }
     .history-details-box.open {
-      display: block;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .breakdown-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 2px 0;
+      border-bottom: 1px dashed #e2e8f0;
+    }
+    .breakdown-row:last-child {
+      border-bottom: none;
     }
     .action-btn {
       background: none;
@@ -234,7 +271,9 @@
   <div class="card">
     <div class="title">総資産残高</div>
     <div class="total-balance" id="totalBalance">¥0</div>
-    <div class="diff-display" id="latestDiff">前回比: -</div>
+    <div class="diff-container">
+      <div class="diff-display" id="latestDiff">前回比: -</div>
+    </div>
 
     <!-- 折りたたみ可能な入力欄 -->
     <div class="accordion-header" onclick="toggleInputSection()">
@@ -495,7 +534,6 @@
       document.getElementById(id).value = '';
     });
 
-    // 保存後は入力欄を閉じる
     document.getElementById('inputAccordion').classList.remove('open');
     document.getElementById('toggleIcon').innerText = '▼';
 
@@ -519,7 +557,6 @@
       document.getElementById(idStr).value = record.details[key] || '';
     });
 
-    // 編集時は入力欄を開く
     const content = document.getElementById('inputAccordion');
     content.classList.add('open');
     document.getElementById('toggleIcon').innerText = '▲';
@@ -551,7 +588,6 @@
     const latest = records[records.length - 1];
     document.getElementById('totalBalance').innerText = '¥' + latest.total.toLocaleString();
 
-    // 前回比（金額＆％）の計算
     let latestDiffText = '-';
     let latestDiffClass = 'diff-zero';
     if (records.length >= 2) {
@@ -576,17 +612,15 @@
     latestDiffElem.innerHTML = latestDiffText;
     latestDiffElem.className = latestDiffClass;
 
-    // アドバイス生成ロジック
     generateAdvice(latest, records.length >= 2 ? records[records.length - 2] : null);
 
-    // 履歴リストの生成（新しい順にループ）
     [...records].reverse().forEach((r) => {
       const li = document.createElement('li');
       li.className = 'history-item';
 
       const originalIndex = records.findIndex(item => item.id === r.id);
       let diffHtml = '';
-      let diffBreakdownText = '';
+      let breakdownRowsHtml = '';
 
       if (originalIndex > 0) {
         const prevRecord = records[originalIndex - 1];
@@ -601,21 +635,29 @@
           diffHtml = `<span class="history-diff diff-zero">±¥0 (0.00%)</span>`;
         }
 
-        // 各項目の増減内訳を生成
-        let changes = [];
+        let changesCount = 0;
         for (let key in ITEM_NAMES) {
           const currentVal = r.details[key] || 0;
           const prevVal = prevRecord.details[key] || 0;
           const itemDiff = currentVal - prevVal;
           if (itemDiff !== 0) {
-            const sign = itemDiff > 0 ? `+¥${itemDiff.toLocaleString()}` : `-¥${Math.abs(itemDiff).toLocaleString()}`;
-            changes.push(`${ITEM_NAMES[key]}: ${sign}`);
+            changesCount++;
+            const signClass = itemDiff > 0 ? 'diff-plus' : 'diff-minus';
+            const signText = itemDiff > 0 ? `+¥${itemDiff.toLocaleString()}` : `-¥${Math.abs(itemDiff).toLocaleString()}`;
+            breakdownRowsHtml += `
+              <div class="breakdown-row">
+                <span>${ITEM_NAMES[key]}</span>
+                <span class="${signClass}" style="font-weight: bold;">${signText}</span>
+              </div>
+            `;
           }
         }
-        diffBreakdownText = changes.length > 0 ? changes.join(' / ') : '変動なし';
+        if (changesCount === 0) {
+          breakdownRowsHtml = '<div style="text-align: center; color: var(--text-sub);">変動なし</div>';
+        }
       } else {
         diffHtml = `<span class="history-diff diff-zero">初回</span>`;
-        diffBreakdownText = '初回の記録データです';
+        breakdownRowsHtml = '<div style="text-align: center; color: var(--text-sub);">初回の記録データです</div>';
       }
 
       const catSum = r.categoryTotals || [0, 0, 0, 0];
@@ -625,22 +667,26 @@
         <div class="history-header">
           <span class="history-date">📅 ${r.date}</span>
           <div class="history-right">
-            <div>
+            <div class="history-amount-row">
               <span class="history-amount">¥${r.total.toLocaleString()}</span>
               ${diffHtml}
             </div>
-            <button class="action-btn edit-btn" onclick="loadRecordToForm(${r.id})">編集</button>
-            <button class="action-btn del-btn" onclick="deleteRecord(${r.id})">削除</button>
+            <div class="history-buttons">
+              <button class="action-btn edit-btn" onclick="loadRecordToForm(${r.id})">編集</button>
+              <button class="action-btn del-btn" onclick="deleteRecord(${r.id})">削除</button>
+            </div>
           </div>
         </div>
         <div class="history-details">${detailsText}</div>
         <button class="history-details-toggle" onclick="toggleDetails(${r.id})">🔍 前回からの項目別内訳を見る</button>
-        <div class="history-details-box" id="details-box-${r.id}">${diffBreakdownText}</div>
+        <div class="history-details-box" id="details-box-${r.id}">
+          ${breakdownRowsHtml}
+        </div>
       `;
       historyList.appendChild(li);
     });
 
-    updatePieChart(latest.categoryTotals, latest.total);
+    updatePieChart(latest.categoryTotals);
     updateLineChart(records.map(r => r.date), records.map(r => r.total));
   }
 
@@ -657,7 +703,6 @@
 
     let advice = `現在の総資産は ¥${total.toLocaleString()} です。`;
 
-    // 割合に応じたアドバイス
     if (cashRatio > 70) {
       advice += `現金比率が ${cashRatio.toFixed(1)}% と高めです。生活防衛資金を確保しつつ、つみたて投資などを活用して証券への投資比率を高めると効率的な資産形成につながります。`;
     } else if (secRatio > 50) {
@@ -666,7 +711,6 @@
       advice += `現金と証券・ポイントがバランスよく配置されています。定期的な積立と見直しを続けましょう。`;
     }
 
-    // 前回比のコメント
     if (prev) {
       const diff = total - prev.total;
       if (diff > 0) {
@@ -695,7 +739,6 @@
         maintainAspectRatio: false,
         plugins: {
           legend: { position: 'bottom', labels: { boxWidth: 14, font: { size: 12 } } },
-          // グラフ上に％を表示
           datalabels: {
             color: '#ffffff',
             font: { weight: 'bold', size: 12 },
@@ -728,7 +771,7 @@
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          datalabels: { display: false } // 折れ線グラフではラベルを非表示
+          datalabels: { display: false }
         },
         scales: {
           y: { beginAtZero: false }
