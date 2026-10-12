@@ -1,12 +1,15 @@
+資産形成アドバイス機能を追加し、最新の全機能（入力欄の折りたたみ、円グラフの割合表示、前回比・％表示、前回からの項目別内訳増減など）をすべて網羅した更新版のHTMLコードを作成しました。
+以下のコードをコピーして、お手元のファイルに上書きしてご活用ください。
 <!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ファミリー資産管理</title>
-  <!-- Chart.js & Datalabels Plugin -->
+  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+  <!-- Chart.js DataLabels Plugin -->
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
   <style>
     :root {
       --bg-color: #f8fafc;
@@ -60,6 +63,45 @@
     .diff-minus { color: #ef4444; }
     .diff-zero { color: var(--text-sub); }
 
+    /* アドバイスカード用スタイル */
+    .advice-card {
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+      border: 1px solid #bfdbfe;
+    }
+    .advice-title {
+      font-size: 13px;
+      font-weight: bold;
+      color: #1e40af;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .advice-text {
+      font-size: 13px;
+      color: #1e3a8a;
+      line-height: 1.5;
+    }
+
+    /* アコーディオン（折りたたみ）用スタイル */
+    .accordion-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      padding-bottom: 4px;
+      user-select: none;
+    }
+    .accordion-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+    }
+    .accordion-content.open {
+      max-height: 2000px; /* 十分な大きさを指定 */
+      transition: max-height 0.5s ease-in;
+    }
+
     .section-label {
       font-size: 12px;
       font-weight: bold;
@@ -73,6 +115,7 @@
       flex-direction: column;
       gap: 8px;
       margin-bottom: 16px;
+      margin-top: 10px;
     }
     .input-row {
       display: flex;
@@ -121,13 +164,13 @@
       list-style: none;
       padding: 0;
       margin: 0;
-      max-height: 260px;
+      max-height: 300px;
       overflow-y: auto;
     }
     .history-item {
       display: flex;
       flex-direction: column;
-      padding: 10px 0;
+      padding: 12px 0;
       border-bottom: 1px solid #f1f5f9;
       font-size: 13px;
     }
@@ -145,10 +188,28 @@
     }
     .history-amount { font-weight: bold; color: var(--text-main); font-size: 15px; }
     .history-diff { font-size: 11px; font-weight: bold; display: block; text-align: right; }
-    .history-details {
+    .history-details-toggle {
       font-size: 11px;
-      color: #64748b;
-      line-height: 1.4;
+      color: var(--primary);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      margin-top: 4px;
+      text-align: left;
+    }
+    .history-details-box {
+      font-size: 11px;
+      color: #475569;
+      background: #f8fafc;
+      padding: 8px;
+      border-radius: 8px;
+      margin-top: 6px;
+      display: none;
+      line-height: 1.5;
+    }
+    .history-details-box.open {
+      display: block;
     }
     .action-btn {
       background: none;
@@ -159,170 +220,158 @@
     }
     .del-btn { color: #ef4444; }
     .edit-btn { color: #2563eb; }
-
-    /* 各項目の増減表示カード */
-    .diff-list {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      margin-top: 8px;
-    }
-    .diff-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 12px;
-      padding: 6px 10px;
-      background: #f1f5f9;
-      border-radius: 8px;
-    }
-    .diff-item-name { font-weight: bold; color: #334155; }
-    .diff-item-val { font-weight: bold; }
   </style>
 </head>
 <body>
 
 <div class="container">
+  <!-- 資産形成アドバイスカード -->
+  <div class="card advice-card">
+    <div class="advice-title">💡 資産形成アドバイス</div>
+    <div class="advice-text" id="adviceText">データを入力すると、ここにあなた向けのアドバイスが表示されます。</div>
+  </div>
+
   <div class="card">
     <div class="title">総資産残高</div>
     <div class="total-balance" id="totalBalance">¥0</div>
     <div class="diff-display" id="latestDiff">前回比: -</div>
 
-    <div class="input-group">
-      <!-- 現金カテゴリ -->
-      <div class="section-label">💵 現金</div>
-      <div class="input-row">
-        <label style="color: #10b981;">現金手元・口座</label>
-        <input type="number" id="cashInput" placeholder="0" inputmode="numeric">
-      </div>
-      <div class="input-row">
-        <label style="color: #059669;">モリモリ買取</label>
-        <input type="number" id="morimoriInput" placeholder="0" inputmode="numeric">
-      </div>
-      <div class="input-row">
-        <label style="color: #047857;">日本生命</label>
-        <input type="number" id="nissayInput" placeholder="0" inputmode="numeric">
-      </div>
-
-      <!-- 証券カテゴリ -->
-      <div class="section-label">📈 証券</div>
-      <div class="input-row">
-        <label style="color: #6366f1;">iDeCo</label>
-        <input type="number" id="idecoInput" placeholder="0" inputmode="numeric">
-      </div>
-      <div class="input-row">
-        <label style="color: #6366f1;">PayPay証券</label>
-        <input type="number" id="paypayInput" placeholder="0" inputmode="numeric">
-      </div>
-      <div class="input-row">
-        <label style="color: #6366f1;">マネックス証券</label>
-        <input type="number" id="monexInput" placeholder="0" inputmode="numeric">
-      </div>
-      <div class="input-row">
-        <label style="color: #6366f1;">三菱UFJ eスマ証券</label>
-        <input type="number" id="mufgInput" placeholder="0" inputmode="numeric">
-      </div>
-      <div class="input-row">
-        <label style="color: #6366f1;">日興証券</label>
-        <input type="number" id="nikkoInput" placeholder="0" inputmode="numeric">
-      </div>
-      <div class="input-row">
-        <label style="color: #6366f1;">さわかみファンド</label>
-        <input type="number" id="sawakamiInput" placeholder="0" inputmode="numeric">
-      </div>
-      <div class="input-row">
-        <label style="color: #6366f1;">コネクト証券</label>
-        <input type="number" id="connectInput" placeholder="0" inputmode="numeric">
-      </div>
-      <div class="input-row">
-        <label style="color: #6366f1;">その他証券</label>
-        <input type="number" id="otherSecInput" placeholder="0" inputmode="numeric">
-      </div>
-
-      <!-- 暗号資産カテゴリ -->
-      <div class="section-label">₿ 暗号資産</div>
-      <div class="input-row">
-        <label style="color: #f59e0b;">BTC (メルカリ)</label>
-        <input type="number" id="btcMercariInput" placeholder="0" inputmode="numeric">
-      </div>
-      <div class="input-row">
-        <label style="color: #f59e0b;">BTC (BITPOINT)</label>
-        <input type="number" id="btcBitpointInput" placeholder="0" inputmode="numeric">
-      </div>
-
-      <!-- ポイントカテゴリ -->
-      <div class="section-label">🎁 ポイント</div>
-      <div class="input-row">
-        <label style="color: #ec4899;">dポイント</label>
-        <input type="number" id="dPointInput" placeholder="0" inputmode="numeric">
-      </div>
-      <div class="input-row">
-        <label style="color: #ec4899;">dポイント運用</label>
-        <input type="number" id="dPointInvestInput" placeholder="0" inputmode="numeric">
-      </div>
-      <div class="input-row">
-        <label style="color: #ec4899;">Vポイント</label>
-        <input type="number" id="vPointInput" placeholder="0" inputmode="numeric">
-      </div>
-      <div class="input-row">
-        <label style="color: #ec4899;">Vポイント運用</label>
-        <input type="number" id="vPointInvestInput" placeholder="0" inputmode="numeric">
-      </div>
-      <div class="input-row">
-        <label style="color: #ec4899;">楽天期間限定pt</label>
-        <input type="number" id="rakutenLimitedInput" placeholder="0" inputmode="numeric">
-      </div>
-      <div class="input-row">
-        <label style="color: #ec4899;">Pontaポイント</label>
-        <input type="number" id="pontaPointInput" placeholder="0" inputmode="numeric">
-      </div>
-      <div class="input-row">
-        <label style="color: #ec4899;">Pontaポイント運用</label>
-        <input type="number" id="pontaPointInvestInput" placeholder="0" inputmode="numeric">
-      </div>
-      <div class="input-row">
-        <label style="color: #ec4899;">PayPayポイント運用</label>
-        <input type="number" id="paypayPointInvestInput" placeholder="0" inputmode="numeric">
-      </div>
-      <div class="input-row">
-        <label style="color: #ec4899;">Gポイント</label>
-        <input type="number" id="gPointInput" placeholder="0" inputmode="numeric">
-      </div>
-      <div class="input-row">
-        <label style="color: #ec4899;">JRキューポ</label>
-        <input type="number" id="jrCupoInput" placeholder="0" inputmode="numeric">
-      </div>
-      <div class="input-row">
-        <label style="color: #ec4899;">ドットマネー</label>
-        <input type="number" id="dotMoneyInput" placeholder="0" inputmode="numeric">
-      </div>
-      <div class="input-row">
-        <label style="color: #ec4899;">Pex</label>
-        <input type="number" id="pexInput" placeholder="0" inputmode="numeric">
-      </div>
-      <div class="input-row">
-        <label style="color: #ec4899;">Powl</label>
-        <input type="number" id="powlInput" placeholder="0" inputmode="numeric">
-      </div>
-      <div class="input-row">
-        <label style="color: #ec4899;">ハピタス</label>
-        <input type="number" id="hapitasuInput" placeholder="0" inputmode="numeric">
-      </div>
-
-      <div class="input-row" style="margin-top: 10px;">
-        <label>📅 入力日</label>
-        <input type="date" id="dateInput">
+    <!-- 折りたたみ可能な入力欄 -->
+    <div class="accordion-header" onclick="toggleInputSection()">
+      <div class="section-label" style="border: none; margin: 0; color: var(--primary); font-size: 13px;">
+        ✏️ 資産データを入力・編集する <span id="toggleIcon">▼</span>
       </div>
     </div>
 
-    <button class="btn" onclick="addRecord()">記録を保存・更新</button>
-  </div>
+    <div class="accordion-content" id="inputAccordion">
+      <div class="input-group">
+        <!-- 現金カテゴリ -->
+        <div class="section-label">💵 現金</div>
+        <div class="input-row">
+          <label style="color: #10b981;">現金手元・口座</label>
+          <input type="number" id="cashInput" placeholder="0" inputmode="numeric">
+        </div>
+        <div class="input-row">
+          <label style="color: #059669;">モリモリ買取</label>
+          <input type="number" id="morimoriInput" placeholder="0" inputmode="numeric">
+        </div>
+        <div class="input-row">
+          <label style="color: #047857;">日本生命</label>
+          <input type="number" id="nissayInput" placeholder="0" inputmode="numeric">
+        </div>
 
-  <!-- 前回比（項目別増減）カード -->
-  <div class="card">
-    <div class="title">前回比の内訳（主な増減）</div>
-    <div class="diff-list" id="itemDiffList">
-      <div style="text-align: center; color: var(--text-sub); font-size: 12px; padding: 8px;">比較対象のデータが足りません</div>
+        <!-- 証券カテゴリ -->
+        <div class="section-label">📈 証券</div>
+        <div class="input-row">
+          <label style="color: #6366f1;">iDeCo</label>
+          <input type="number" id="idecoInput" placeholder="0" inputmode="numeric">
+        </div>
+        <div class="input-row">
+          <label style="color: #6366f1;">PayPay証券</label>
+          <input type="number" id="paypayInput" placeholder="0" inputmode="numeric">
+        </div>
+        <div class="input-row">
+          <label style="color: #6366f1;">マネックス証券</label>
+          <input type="number" id="monexInput" placeholder="0" inputmode="numeric">
+        </div>
+        <div class="input-row">
+          <label style="color: #6366f1;">三菱UFJ eスマ証券</label>
+          <input type="number" id="mufgInput" placeholder="0" inputmode="numeric">
+        </div>
+        <div class="input-row">
+          <label style="color: #6366f1;">日興証券</label>
+          <input type="number" id="nikkoInput" placeholder="0" inputmode="numeric">
+        </div>
+        <div class="input-row">
+          <label style="color: #6366f1;">さわかみファンド</label>
+          <input type="number" id="sawakamiInput" placeholder="0" inputmode="numeric">
+        </div>
+        <div class="input-row">
+          <label style="color: #6366f1;">コネクト証券</label>
+          <input type="number" id="connectInput" placeholder="0" inputmode="numeric">
+        </div>
+        <div class="input-row">
+          <label style="color: #6366f1;">その他証券</label>
+          <input type="number" id="otherSecInput" placeholder="0" inputmode="numeric">
+        </div>
+
+        <!-- 暗号資産カテゴリ -->
+        <div class="section-label">₿ 暗号資産</div>
+        <div class="input-row">
+          <label style="color: #f59e0b;">BTC (メルカリ)</label>
+          <input type="number" id="btcMercariInput" placeholder="0" inputmode="numeric">
+        </div>
+        <div class="input-row">
+          <label style="color: #f59e0b;">BTC (BITPOINT)</label>
+          <input type="number" id="btcBitpointInput" placeholder="0" inputmode="numeric">
+        </div>
+
+        <!-- ポイントカテゴリ -->
+        <div class="section-label">🎁 ポイント</div>
+        <div class="input-row">
+          <label style="color: #ec4899;">dポイント</label>
+          <input type="number" id="dPointInput" placeholder="0" inputmode="numeric">
+        </div>
+        <div class="input-row">
+          <label style="color: #ec4899;">dポイント運用</label>
+          <input type="number" id="dPointInvestInput" placeholder="0" inputmode="numeric">
+        </div>
+        <div class="input-row">
+          <label style="color: #ec4899;">Vポイント</label>
+          <input type="number" id="vPointInput" placeholder="0" inputmode="numeric">
+        </div>
+        <div class="input-row">
+          <label style="color: #ec4899;">Vポイント運用</label>
+          <input type="number" id="vPointInvestInput" placeholder="0" inputmode="numeric">
+        </div>
+        <div class="input-row">
+          <label style="color: #ec4899;">楽天期間限定pt</label>
+          <input type="number" id="rakutenLimitedInput" placeholder="0" inputmode="numeric">
+        </div>
+        <div class="input-row">
+          <label style="color: #ec4899;">Pontaポイント</label>
+          <input type="number" id="pontaPointInput" placeholder="0" inputmode="numeric">
+        </div>
+        <div class="input-row">
+          <label style="color: #ec4899;">Pontaポイント運用</label>
+          <input type="number" id="pontaPointInvestInput" placeholder="0" inputmode="numeric">
+        </div>
+        <div class="input-row">
+          <label style="color: #ec4899;">PayPayポイント運用</label>
+          <input type="number" id="paypayPointInvestInput" placeholder="0" inputmode="numeric">
+        </div>
+        <div class="input-row">
+          <label style="color: #ec4899;">Gポイント</label>
+          <input type="number" id="gPointInput" placeholder="0" inputmode="numeric">
+        </div>
+        <div class="input-row">
+          <label style="color: #ec4899;">JRキューポ</label>
+          <input type="number" id="jrCupoInput" placeholder="0" inputmode="numeric">
+        </div>
+        <div class="input-row">
+          <label style="color: #ec4899;">ドットマネー</label>
+          <input type="number" id="dotMoneyInput" placeholder="0" inputmode="numeric">
+        </div>
+        <div class="input-row">
+          <label style="color: #ec4899;">Pex</label>
+          <input type="number" id="pexInput" placeholder="0" inputmode="numeric">
+        </div>
+        <div class="input-row">
+          <label style="color: #ec4899;">Powl</label>
+          <input type="number" id="powlInput" placeholder="0" inputmode="numeric">
+        </div>
+        <div class="input-row">
+          <label style="color: #ec4899;">ハピタス</label>
+          <input type="number" id="hapitasuInput" placeholder="0" inputmode="numeric">
+        </div>
+
+        <div class="input-row" style="margin-top: 10px;">
+          <label>📅 入力日</label>
+          <input type="date" id="dateInput">
+        </div>
+      </div>
+
+      <button class="btn" onclick="addRecord()">記録を保存・更新</button>
     </div>
   </div>
 
@@ -341,28 +390,49 @@
   </div>
 
   <div class="card">
-    <div class="title" style="margin-bottom: 12px;">入力履歴（前回比）</div>
+    <div class="title" style="margin-bottom: 12px;">入力履歴（内訳・前回比）</div>
     <ul class="history-list" id="historyList"></ul>
   </div>
 </div>
 
 <script>
-  // datalabelsプラグインを登録
+  // Chart.js の DataLabelsプラグインを登録
   Chart.register(ChartDataLabels);
 
   let records = JSON.parse(localStorage.getItem('family_money_records') || '[]');
   let pieChart, lineChart;
 
-  const INPUT_LABELS = {
-    cash: '現金手元・口座', morimori: 'モリモリ買取', nissay: '日本生命',
-    ideco: 'iDeCo', paypay: 'PayPay証券', monex: 'マネックス証券', mufg: '三菱UFJ eスマ証券', nikko: '日興証券', sawakami: 'さわかみファンド', connect: 'コネクト証券', otherSec: 'その他証券',
-    btcMercari: 'BTC (メルカリ)', btcBitpoint: 'BTC (BITPOINT)',
-    dPoint: 'dポイント', dPointInvest: 'dポイント運用', vPoint: 'Vポイント', vPointInvest: 'Vポイント運用', rakutenLimited: '楽天期間限定pt',
-    pontaPoint: 'Pontaポイント', pontaPointInvest: 'Pontaポイント運用', paypayPointInvest: 'PayPayポイント運用',
-    gPoint: 'Gポイント', jrCupo: 'JRキューポ', dotMoney: 'ドットマネー', pex: 'Pex', powl: 'Powl', hapitasu: 'ハピタス'
+  const ITEM_NAMES = {
+    cash: '現金手元・口座',
+    morimori: 'モリモリ買取',
+    nissay: '日本生命',
+    ideco: 'iDeCo',
+    paypay: 'PayPay証券',
+    monex: 'マネックス証券',
+    mufg: '三菱UFJ eスマ証券',
+    nikko: '日興証券',
+    sawakami: 'さわかみファンド',
+    connect: 'コネクト証券',
+    otherSec: 'その他証券',
+    btcMercari: 'BTC (メルカリ)',
+    btcBitpoint: 'BTC (BITPOINT)',
+    dPoint: 'dポイント',
+    dPointInvest: 'dポイント運用',
+    vPoint: 'Vポイント',
+    vPointInvest: 'Vポイント運用',
+    rakutenLimited: '楽天期間限定pt',
+    pontaPoint: 'Pontaポイント',
+    pontaPointInvest: 'Pontaポイント運用',
+    paypayPointInvest: 'PayPayポイント運用',
+    gPoint: 'Gポイント',
+    jrCupo: 'JRキューポ',
+    dotMoney: 'ドットマネー',
+    pex: 'Pex',
+    powl: 'Powl',
+    hapitasu: 'ハピタス'
   };
 
-  const INPUT_IDS = Object.keys(INPUT_LABELS).map(key => key + 'Input');
+  const INPUT_IDS = Object.keys(ITEM_NAMES).map(key => key + 'Input');
 
   const CATEGORY_COLORS = ['#10b981', '#6366f1', '#f59e0b', '#ec4899'];
   const CATEGORY_LABELS = ['現金', '証券', '暗号資産', 'ポイント'];
@@ -372,6 +442,13 @@
     initCharts();
     updateUI();
   };
+
+  function toggleInputSection() {
+    const content = document.getElementById('inputAccordion');
+    const icon = document.getElementById('toggleIcon');
+    content.classList.toggle('open');
+    icon.innerText = content.classList.contains('open') ? '▲' : '▼';
+  }
 
   function addRecord() {
     const date = document.getElementById('dateInput').value;
@@ -418,6 +495,10 @@
       document.getElementById(id).value = '';
     });
 
+    // 保存後は入力欄を閉じる
+    document.getElementById('inputAccordion').classList.remove('open');
+    document.getElementById('toggleIcon').innerText = '▼';
+
     updateUI();
   }
 
@@ -437,21 +518,33 @@
       const key = idStr.replace('Input', '');
       document.getElementById(idStr).value = record.details[key] || '';
     });
+
+    // 編集時は入力欄を開く
+    const content = document.getElementById('inputAccordion');
+    content.classList.add('open');
+    document.getElementById('toggleIcon').innerText = '▲';
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function toggleDetails(historyId) {
+    const box = document.getElementById('details-box-' + historyId);
+    box.classList.toggle('open');
   }
 
   function updateUI() {
     const historyList = document.getElementById('historyList');
     historyList.innerHTML = '';
     const latestDiffElem = document.getElementById('latestDiff');
+    const adviceTextElem = document.getElementById('adviceText');
 
     if (records.length === 0) {
       document.getElementById('totalBalance').innerText = '¥0';
       latestDiffElem.innerHTML = '前回比: -';
       latestDiffElem.className = 'diff-display diff-zero';
+      adviceTextElem.innerText = 'データを入力すると、ここにあなた向けのアドバイスが表示されます。';
       updatePieChart([0, 0, 0, 0]);
       updateLineChart([], []);
-      updateItemDiffList(null, null);
       return;
     }
 
@@ -459,37 +552,42 @@
     document.getElementById('totalBalance').innerText = '¥' + latest.total.toLocaleString();
 
     // 前回比（金額＆％）の計算
-    let previous = null;
+    let latestDiffText = '-';
+    let latestDiffClass = 'diff-zero';
     if (records.length >= 2) {
-      previous = records[records.length - 2];
+      const previous = records[records.length - 2];
       const diff = latest.total - previous.total;
       const percent = previous.total > 0 ? ((diff / previous.total) * 100).toFixed(2) : 0;
       
       if (diff > 0) {
-        latestDiffElem.innerHTML = `前回比: +¥${diff.toLocaleString()} (+${percent}%)`;
-        latestDiffElem.className = 'diff-display diff-plus';
+        latestDiffText = `前回比: +¥${diff.toLocaleString()} (+${percent}%)`;
+        latestDiffClass = 'diff-display diff-plus';
       } else if (diff < 0) {
-        latestDiffElem.innerHTML = `前回比: -¥${Math.abs(diff).toLocaleString()} (${percent}%)`;
-        latestDiffElem.className = 'diff-display diff-minus';
+        latestDiffText = `前回比: -¥${Math.abs(diff).toLocaleString()} (${percent}%)`;
+        latestDiffClass = 'diff-display diff-minus';
       } else {
-        latestDiffElem.innerHTML = '前回比: ±¥0 (0.00%)';
-        latestDiffElem.className = 'diff-display diff-zero';
+        latestDiffText = '前回比: ±¥0 (0.00%)';
+        latestDiffClass = 'diff-display diff-zero';
       }
     } else {
-      latestDiffElem.innerHTML = '初回の記録';
-      latestDiffElem.className = 'diff-display diff-zero';
+      latestDiffText = '初回の記録';
+      latestDiffClass = 'diff-display diff-zero';
     }
+    latestDiffElem.innerHTML = latestDiffText;
+    latestDiffElem.className = latestDiffClass;
 
-    // 項目別の前回比リストを更新
-    updateItemDiffList(latest, previous);
+    // アドバイス生成ロジック
+    generateAdvice(latest, records.length >= 2 ? records[records.length - 2] : null);
 
-    // 履歴リストの生成（新しい順）
+    // 履歴リストの生成（新しい順にループ）
     [...records].reverse().forEach((r) => {
       const li = document.createElement('li');
       li.className = 'history-item';
 
       const originalIndex = records.findIndex(item => item.id === r.id);
       let diffHtml = '';
+      let diffBreakdownText = '';
+
       if (originalIndex > 0) {
         const prevRecord = records[originalIndex - 1];
         const diffVal = r.total - prevRecord.total;
@@ -502,8 +600,22 @@
         } else {
           diffHtml = `<span class="history-diff diff-zero">±¥0 (0.00%)</span>`;
         }
+
+        // 各項目の増減内訳を生成
+        let changes = [];
+        for (let key in ITEM_NAMES) {
+          const currentVal = r.details[key] || 0;
+          const prevVal = prevRecord.details[key] || 0;
+          const itemDiff = currentVal - prevVal;
+          if (itemDiff !== 0) {
+            const sign = itemDiff > 0 ? `+¥${itemDiff.toLocaleString()}` : `-¥${Math.abs(itemDiff).toLocaleString()}`;
+            changes.push(`${ITEM_NAMES[key]}: ${sign}`);
+          }
+        }
+        diffBreakdownText = changes.length > 0 ? changes.join(' / ') : '変動なし';
       } else {
         diffHtml = `<span class="history-diff diff-zero">初回</span>`;
+        diffBreakdownText = '初回の記録データです';
       }
 
       const catSum = r.categoryTotals || [0, 0, 0, 0];
@@ -522,58 +634,49 @@
           </div>
         </div>
         <div class="history-details">${detailsText}</div>
+        <button class="history-details-toggle" onclick="toggleDetails(${r.id})">🔍 前回からの項目別内訳を見る</button>
+        <div class="history-details-box" id="details-box-${r.id}">${diffBreakdownText}</div>
       `;
       historyList.appendChild(li);
     });
 
-    updatePieChart(latest.categoryTotals);
+    updatePieChart(latest.categoryTotals, latest.total);
     updateLineChart(records.map(r => r.date), records.map(r => r.total));
   }
 
-  function updateItemDiffList(latest, previous) {
-    const diffContainer = document.getElementById('itemDiffList');
-    diffContainer.innerHTML = '';
-
-    if (!latest || !previous) {
-      diffContainer.innerHTML = `<div style="text-align: center; color: var(--text-sub); font-size: 12px; padding: 8px;">比較対象（2回分以上の入力）がありません</div>`;
+  function generateAdvice(latest, prev) {
+    const [cash, sec, crypto, point] = latest.categoryTotals;
+    const total = latest.total;
+    if (total === 0) {
+      document.getElementById('adviceText').innerText = '資産額を入力すると、ここにポートフォリオ診断が表示されます。';
       return;
     }
 
-    const diffs = [];
-    Object.keys(INPUT_LABELS).forEach(key => {
-      const currentVal = latest.details[key] || 0;
-      const prevVal = previous.details[key] || 0;
-      const diffVal = currentVal - prevVal;
-      if (diffVal !== 0) {
-        diffs.push({
-          name: INPUT_LABELS[key],
-          diff: diffVal
-        });
+    const cashRatio = (cash / total) * 100;
+    const secRatio = (sec / total) * 100;
+
+    let advice = `現在の総資産は ¥${total.toLocaleString()} です。`;
+
+    // 割合に応じたアドバイス
+    if (cashRatio > 70) {
+      advice += `現金比率が ${cashRatio.toFixed(1)}% と高めです。生活防衛資金を確保しつつ、つみたて投資などを活用して証券への投資比率を高めると効率的な資産形成につながります。`;
+    } else if (secRatio > 50) {
+      advice += `証券（投資信託や株など）の比率が ${secRatio.toFixed(1)}% としっかり運用されています！複利の効果を活かして長期目線で継続していきましょう。`;
+    } else {
+      advice += `現金と証券・ポイントがバランスよく配置されています。定期的な積立と見直しを続けましょう。`;
+    }
+
+    // 前回比のコメント
+    if (prev) {
+      const diff = total - prev.total;
+      if (diff > 0) {
+        advice += ` 前回記録時より +¥${diff.toLocaleString()} 増加しています。この調子で資産を育てていきましょう！`;
+      } else if (diff < 0) {
+        advice += ` 前回記録時より -¥${Math.abs(diff).toLocaleString()} 変動（減少）が見られます。市場の波に一喜一憂せず、淡々と継続することが大切です。`;
       }
-    });
-
-    if (diffs.length === 0) {
-      diffContainer.innerHTML = `<div style="text-align: center; color: var(--text-sub); font-size: 12px; padding: 8px;">前回から変更のある項目はありません</div>`;
-      return;
     }
 
-    // 変化の絶対値が大きい順に並び替え
-    diffs.sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
-
-    diffs.forEach(item => {
-      const div = document.createElement('div');
-      div.className = 'diff-item';
-      
-      const isPlus = item.diff > 0;
-      const classColor = isPlus ? 'diff-plus' : 'diff-minus';
-      const sign = isPlus ? '+' : '';
-
-      div.innerHTML = `
-        <span class="diff-item-name">${item.name}</span>
-        <span class="diff-item-val ${classColor}">${sign}¥${item.diff.toLocaleString()}</span>
-      `;
-      diffContainer.appendChild(div);
-    });
+    document.getElementById('adviceText').innerText = advice;
   }
 
   function initCharts() {
@@ -592,11 +695,12 @@
         maintainAspectRatio: false,
         plugins: {
           legend: { position: 'bottom', labels: { boxWidth: 14, font: { size: 12 } } },
+          // グラフ上に％を表示
           datalabels: {
             color: '#ffffff',
             font: { weight: 'bold', size: 12 },
-            formatter: (value, ctx) => {
-              const sum = ctx.dataset.data.reduce((a, b) => a + b, 0);
+            formatter: (value, context) => {
+              const sum = context.dataset.data.reduce((a, b) => a + b, 0);
               if (sum === 0 || value === 0) return '';
               const percentage = ((value / sum) * 100).toFixed(1) + '%';
               return percentage;
@@ -624,7 +728,7 @@
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          datalabels: { display: false } // 折れ線グラフではラベル非表示
+          datalabels: { display: false } // 折れ線グラフではラベルを非表示
         },
         scales: {
           y: { beginAtZero: false }
@@ -647,3 +751,4 @@
 
 </body>
 </html>
+
